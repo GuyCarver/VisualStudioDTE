@@ -1,0 +1,12 @@
+*.ipch
+*.pyc
+*.db*
+*.opendb
+*.tlog
+*.idb
+*.recipe
+*.exp
+*.iobj
+*.ipdb
+*.sublime*
+*.FileListAbsolute.txt
