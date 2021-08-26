@@ -10,3 +10,8 @@
 *.ipdb
 *.sublime*
 *.FileListAbsolute.txt
+*.user
+*.obj
+*.pdb
+*.log
+*.suo
