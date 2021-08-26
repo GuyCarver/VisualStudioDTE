@@ -15,3 +15,5 @@
 *.pdb
 *.log
 *.suo
+*.ilk
+x64

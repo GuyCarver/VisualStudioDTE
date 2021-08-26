@@ -71,7 +71,7 @@ bool Open( const wchar_t *apVersion )
 		CoInitialize(nullptr);
 
 		if (apVersion == nullptr) {
-			apVersion = L"VisualStudio.DTE.16";
+			apVersion = L"VisualStudio.DTE.16.0";
 		}
 
 		CLSID clsidDTE;
@@ -167,19 +167,16 @@ void *GetBreakPoints( uint32_t &aCount )
 	return pbreaks;
 }
 
-//TODO: Possible merge GetBreakPoint and GetEnabledBreakPoint
-
 ///
-/// <summary> Get a breakpoint file and line number. </summary>
+/// <summary> Get a breakpoint data. </summary>
 /// <param name="apBreaks"> Pointer to the Breakpoints object. </param>
 /// <param name="aIndex"> 0 based index for the break point. </param>
-/// <param name="aLine"> OUTPARAM for the line #. </param>
-/// <returns> File name. </returns>
+/// <returns> BreakPointData structure </returns>
 ///
-const wchar_t *GetBreakPoint( void *apBreaks, uint32_t aIndex, uint32_t &aLine )
+const BreakPointData GetBreakPoint( void *apBreaks, uint32_t aIndex )
 {
-	const wchar_t *pfile = nullptr;
-	aLine = 0;
+	BreakPointData res;
+
 	if (apBreaks) {
 		auto *pbreaks = reinterpret_cast<Breakpoints*>(apBreaks);
 		VARIANT v;
@@ -189,53 +186,18 @@ const wchar_t *GetBreakPoint( void *apBreaks, uint32_t aIndex, uint32_t &aLine )
 		auto hr = pbreaks->Item(v, &pbreak);
 		if (SUCCEEDED(hr)) {
 			BSTR f;
-			long l;
-			hr = pbreak->get_File(&f);
-			pfile = f;
-			hr = pbreak->get_FileLine(&l);
-			aLine = l;
-		}
-	}
-
-	//TODO: Try to return a BSTR so f and pfile can be the same.
-	return pfile;
-}
-
-///
-/// <summary> Get a breakpoint file and line number if enabled flag matches. </summary>
-/// <param name="apBreaks"> Pointer to the Breakpoints object. </param>
-/// <param name="aIndex"> 0 based index for the break point. </param>
-/// <param name="abEnabled"> Flag to match. </param>
-/// <param name="aLine"> OUTPARAM for the line #. </param>
-/// <returns> File name. </returns>
-///
-const wchar_t *GetEnabledBreakPoint( void *apBreaks, uint32_t aIndex, bool abEnabled, uint32_t &aLine )
-{
-	const wchar_t *pfile = nullptr;
-	aLine = 0;
-	if (apBreaks) {
-		auto *pbreaks = reinterpret_cast<Breakpoints*>(apBreaks);
-		VARIANT v;
-		v.llVal = aIndex + 1;					// Add 1 because the index needs to be 1 based instead of 0.
-		v.vt = VT_UINT;
-		BreakpointPtr pbreak;
-		auto hr = pbreaks->Item(v, &pbreak);
-		if (SUCCEEDED(hr)) {
+			pbreak->get_File(&f);
+			res.FileName = f;
+			long ln;
+			pbreak->get_FileLine(&ln);
+			res.Line = ln;
 			VARIANT_BOOL en;
 			pbreak->get_Enabled(&en);
-			if (static_cast<bool>(en) == abEnabled) {
-				BSTR f;
-				long l;
-				pbreak->get_File(&f);
-				pfile = f;
-				pbreak->get_FileLine(&l);
-				aLine = l;
-			}
+			res.bEnabled = en != 0;
 		}
 	}
 
-	//TODO: Try to return a BSTR so f and pfile can be the same.
-	return pfile;
+	return res;
 }
 
 //

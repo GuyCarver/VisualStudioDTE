@@ -73,11 +73,18 @@ VISUALSTUDIO_API bool Open( const wchar_t *apVersion );
 VISUALSTUDIO_API void Close();
 VISUALSTUDIO_API bool SetFile( const wchar_t *apFileName, uint32_t aiLineNumber );
 VISUALSTUDIO_API void *GetBreakPoints( uint32_t &aCount );
-VISUALSTUDIO_API const wchar_t *GetBreakPoint( void *apBreaks, uint32_t aIndex, uint32_t &aLine );
-VISUALSTUDIO_API const wchar_t *GetEnabledBreakPoint( void *apBreaks, uint32_t aIndex, bool abEnabled, uint32_t &aLine );
 VISUALSTUDIO_API bool SendCommand( const wchar_t *apCommand, const wchar_t *apArgs );
 VISUALSTUDIO_API uint32_t AddOutputWindow( const char *apWindowName );
 VISUALSTUDIO_API void OutputToPane( uint32_t aiIndex, const char *apString );
+
+struct BreakPointData
+{
+	const wchar_t *FileName = nullptr;
+	uint32_t Line = 0;
+	bool bEnabled = false;
+};
+
+VISUALSTUDIO_API const BreakPointData GetBreakPoint( void *apBreaks, uint32_t aIndex );
 
 }
 

@@ -9,12 +9,20 @@
 
 int main()
 {
-    SetFile("VisualStudio.cpp", 40);
-    std::chrono::seconds st(5);
-    std::this_thread::sleep_for(st);
+	Open(nullptr);
+	SetFile(L"VisualStudio.cpp", 40);
+	std::chrono::seconds st(5);
+	std::this_thread::sleep_for(st);
 
-    SetFile("VisualStudio.h", 10);
-    std::cout << "Hello World!\n";
+	SetFile(L"VisualStudio.h", 10);
+	std::cout << "Hello World!\n";
+
+	uint32_t count = 0;
+	auto pbps = GetBreakPoints(count);
+	for ( uint32_t i = 0; i < count; ++i) {
+		BreakPointData data = GetBreakPoint(pbps, i);
+		std::wcout << data.FileName << data.Line << data.bEnabled << std::endl;
+	}
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
