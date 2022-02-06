@@ -34,3 +34,20 @@ def breakpoint( apbs, aIndex ):
 #--------------------------------------------------------
 def command( aCommand, aParams ):
   return _lib.SendCommand(aCommand, aParams)
+
+def addoutputwindow( aName ):
+  ''' Creates an output pane in the output windows tab and returns it's index. '''
+  return _lib.AddOutputWindow(aName)
+
+def outputtopane( aIndex, aString ):
+  ''' Output string to the pane index (returned by addoutputwindow). '''
+  _lib.OutputToPane(aIndex, aString)
+
+def clearpane( aIndex ):
+  ''' Clear text in for pane index (returned by addoutputwindow). '''
+  _lib.ClearPane(aIndex)
+
+def activatepane( aIndex ):
+  ''' Activate pane index (returned by addoutputwindow). '''
+  _lib.ActivatePane(aIndex)
+

@@ -43,6 +43,7 @@
 
 #include <atlbase.h>
 #include <stdio.h>
+#include <limits>
 
 //
 // Local data.
@@ -51,8 +52,6 @@ namespace
 {
 
 _DTEPtr spDTE = nullptr;						// Local DTE pointer set by Open() and released by Close()
-OutputWindowPanePtr spOW[4];
-uint32_t inumPanes = 0;
 
 }	//namespace
 
@@ -71,7 +70,7 @@ bool Open( const wchar_t *apVersion )
 		CoInitialize(nullptr);
 
 		if (apVersion == nullptr) {
-			apVersion = L"VisualStudio.DTE.16.0";
+			apVersion = L"VisualStudio.DTE.17.0";
 		}
 
 		CLSID clsidDTE;
@@ -227,69 +226,169 @@ bool SendCommand( const wchar_t *apCommand, const wchar_t *apArgs )
 
 //
 // <summary>  </summary>
+/// <param name="apWindowName"> Name of window to add. </param>
+/// <returns> 1 based index for pane. 0 if add failed. </returns>
 //
-uint32_t AddOutputWindow( const char *apWindowName )
+int32_t AddOutputWindow( const wchar_t *apWindowName )
 {
-	uint32_t iindex = 0;
-
-	HRESULT hr;
+	int32_t index = 0;
 
 	//If opened ok.
 	if (spDTE) {
-		WindowsPtr pwin = nullptr;
+		WindowsPtr pwin;
+		HRESULT hr = spDTE->get_Windows(&pwin);
+		if (pwin) {
+			WindowPtr pwin2;
+			auto cv = CComVariant(vsWindowKindOutput);
+			hr = pwin->Item(cv, &pwin2);
 
+			if (pwin2) {
+				OutputWindowPtr spout;
+				CComPtr<IDispatch> pdisp;
+
+//				vsWindowType etype;
+//				hr = pwin2->get_Type(&etype);
+
+				hr = pwin2->get_Object(&pdisp);
+				if (pdisp) {
+					hr = pdisp->QueryInterface(&spout);
+				}
+
+				if (spout) {
+					OutputWindowPanesPtr ppanes;
+					OutputWindowPanePtr spowp;
+
+					hr = spout->get_OutputWindowPanes(&ppanes);
+					if (ppanes) {
+						CComBSTR newPaneName(apWindowName);
+						long numPanes = 0;
+						hr = ppanes->get_Count(&numPanes);
+						VARIANT v;
+						VariantInit(&v);
+						v.vt = VT_I4;
+						index = numPanes;
+						for (; index > 0; --index) {
+							OutputWindowPanePtr poutPane;
+							v.lVal = index;
+							hr = ppanes->Item(v, &poutPane);
+							CComBSTR paneName;
+							hr = poutPane->get_Name(&paneName);
+							if (paneName == newPaneName) {
+								break;
+							}
+						}
+
+						if (index == 0) {
+							hr = ppanes->Add(newPaneName, &spowp);
+							if (spowp) {
+								index = numPanes + 1;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return(index);
+}
+
+namespace
+{
+
+///
+/// <summary> Get OutputPane for given index. </summary>
+/// <param name="aIndex"> 1 based index of pane to get from DTE. </param>
+/// <param name="arPane"> OutParam to hold the pane. </param>
+/// <returns> HR_OK if successful. </returns>
+///
+HRESULT GetOutputPane( int32_t aIndex, OutputWindowPanePtr &arPane )
+{
+	HRESULT hr;
+	arPane = nullptr;							// Make sure outparam isn't pointing to anything.
+
+	if (spDTE) {
+		WindowsPtr pwin;
 		hr = spDTE->get_Windows(&pwin);
-
-		WindowPtr pwin2 = nullptr;
-		VARIANT v;
-		memset(&v, 0, sizeof(v));
-		v.vt = VT_I4;
-		
-		v.lVal = vsWindowTypeOutput;
-
-		hr = pwin->Item(v, &pwin2);
+		WindowPtr pwin2;
+		auto cv = CComVariant(vsWindowKindOutput);
+		hr = pwin->Item(cv, &pwin2);
 
 		if (pwin2) {
-			OutputWindowPtr spout = nullptr;
-			CComPtr<IDispatch> pdisp = nullptr;
-		
-			vsWindowType etype;
+			OutputWindowPtr spout;
+			CComPtr<IDispatch> pdisp;
 
-			hr = pwin2->get_Type(&etype);
-			
+//			vsWindowType etype;
+//			hr = pwin2->get_Type(&etype);
+
 			hr = pwin2->get_Object(&pdisp);
 			if (pdisp) {
 				hr = pdisp->QueryInterface(&spout);
 			}
 
 			if (spout) {
-				OutputWindowPanesPtr ppanes = nullptr;
+				OutputWindowPanesPtr ppanes;
+				OutputWindowPanePtr spowp;
 
 				hr = spout->get_OutputWindowPanes(&ppanes);
-				if (ppanes)
-				{
-					OutputWindowPanePtr spowp = nullptr;
-					CComBSTR wname(apWindowName);
-						
-					hr = ppanes->Add(wname, &spowp);
-				
-					if (spowp)
-					{
-						spOW[inumPanes] = spowp;
-						iindex = inumPanes++;
+				if (ppanes) {
+					long numPanes = 0;
+					hr = ppanes->get_Count(&numPanes);
+					if (aIndex <= numPanes) {
+						VARIANT v;
+						VariantInit(&v);
+						v.vt = VT_I4;
+						v.lVal = aIndex;
+
+						OutputWindowPanePtr poutPane;
+						hr = ppanes->Item(v, &poutPane);
+						arPane = poutPane;
 					}
 				}
 			}
 		}
 	}
-
-	return(iindex);
+	return hr;
 }
 
-//
-// <summary>  </summary>
-//
-void OutputToPane( uint32_t aiIndex, const char *apString )
+} //namespace
+
+///
+/// <summary> Output text to the output window pane at the given index. </summary>
+/// <param name="aIndex"> 1 based index of the output window. This is return by AddOutputWindow(). </param>
+/// <param name="apString"> String to add. </param>
+///
+void OutputToPane( int32_t aIndex, const wchar_t *apString )
 {
-	
+	OutputWindowPanePtr ppane;
+	HRESULT hr = GetOutputPane(aIndex, ppane);
+	if (ppane) {
+		CComBSTR woutput(apString);
+		ppane->OutputString(woutput);
+	}
+}
+
+///
+/// <summary> Clear output window pane at the given index. </summary>
+/// <param name="aIndex"> 1 based index of the output window. This is return by AddOutputWindow(). </param>
+///
+void ClearPane( int32_t aIndex )
+{
+	OutputWindowPanePtr ppane;
+	HRESULT hr = GetOutputPane(aIndex, ppane);
+	if (ppane) {
+		ppane->Clear();
+	}
+}
+
+///
+/// <summary> Make output window pane at the given index active. </summary>
+/// <param name="aIndex"> 1 based index of the output window. This is return by AddOutputWindow(). </param>
+///
+void ActivatePane( int32_t aIndex )
+{
+	OutputWindowPanePtr ppane;
+	HRESULT hr = GetOutputPane(aIndex, ppane);
+	if (ppane) {
+		ppane->Activate();
+	}
 }
